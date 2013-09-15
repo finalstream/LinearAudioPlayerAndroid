@@ -1,0 +1,29 @@
+<resources>
+
+    <string name="app_name">LinearAudioPlayer</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="menu_settings">Settings</string>
+    <string name="title_activity_linear_audio_player">LinearAudioPlayer</string>
+    <string name="textview">TextView</string>
+    <string name="_">　　　　</string>
+    <string name="title_activity_main">MainActivity</string>
+    
+	<string name="listitem_id">listitemid</string>
+	<string name="listitem_fromuser">listitemfromuser</string>
+    
+	<string name="playhistory">Play History</string>
+	<string name="menu_playengine">Play Engine</string>
+	<string name="menu_changetheme">Change Theme</string>
+	<string name="menu_config">Setting</string>
+	<string name="menu_playhistoryclear">Clear PlayHistory</string>
+	<string name="playengineselect">Play Engine Select</string>
+	<string name="themeselect">Theme Select</string>
+
+    <string name="filtering_default">Default</string>
+    <string name="filtering_ratingfull">Rating＝1.0</string>
+    <string name="filtering_ratinghalf">Rating≧0.5</string>
+    <string name="filtering_highfreq">Play Frequently(Limit)</string>
+    <string name="filtering_recent">Add Recent</string>
+    <string name="filtering_notrated">Not Rated</string>
+    
+</resources>

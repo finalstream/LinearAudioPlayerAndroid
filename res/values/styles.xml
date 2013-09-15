@@ -1,0 +1,9 @@
+<resources>
+
+    <drawable name="background">#EB000000</drawable>
+    <style name="Theme.Transparent" parent="android:style/Theme.Translucent">
+        <item name="android:windowBackground">@drawable/background</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+    
+</resources>

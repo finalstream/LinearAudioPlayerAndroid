@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="Last.fm">
+        <EditTextPreference android:key="lastfmUser" android:title="Lastfm User"/>
+        <net.finalstream.linearaudioplayer.config.PasswordPreference android:key="lastfmPassword" android:title="Lastfm Password" android:password="true"/>
+    </PreferenceCategory>
+
+</PreferenceScreen>
