@@ -1,9 +1,13 @@
 package net.finalstream.linearaudioplayer;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
@@ -25,7 +30,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import de.umass.util.StringUtilities;
+
 import android.R.drawable;
+import android.media.MediaScannerConnection;
+import android.media.MediaScannerConnection.OnScanCompletedListener;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -33,8 +42,10 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.storage.StorageManager;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -71,6 +82,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.RatingBar;
 import android.widget.RelativeLayout;
@@ -99,6 +111,8 @@ import net.finalstream.linearaudioplayer.services.LinearAudioPlayerService;
 
 public class LinearAudioPlayer extends Activity {
 
+	//private MediaScannerConnection mConnection;
+	
 	private class LinearAudioPlayerReceiver extends BroadcastReceiver {
 		
 		
@@ -193,6 +207,7 @@ public class LinearAudioPlayer extends Activity {
         		try {
 					password = Crypto.decrypt("net.finalstream.linearaudioplayer", password);
 				} catch (Exception e) {
+					Log.e("LINEAR","",e);
 				}
         	}
         	linearAudioPlayerService.setLastfmPassword(password);
@@ -447,7 +462,7 @@ public class LinearAudioPlayer extends Activity {
 		        	}
 		        	
 		        	//r.setTag(R.string.listitem_fromuser,true);
-		        	LinearAudioPlayer.this.updateRating(linearAudioPlayerService.getPlayingItem().getId(),r.getRating());
+		        	LinearAudioPlayer.this.updateRating(linearAudioPlayerService.getPlayingItem().getId(),linearAudioPlayerService.getPlayingItem().getFilePath(),  r.getRating());
 		        	
 		        	// アダプター更新
 		            for (int i = 0; i < listadapter.getCount(); i++) {
@@ -658,7 +673,8 @@ public class LinearAudioPlayer extends Activity {
         // TODO: IS_MUSIC=1でしぼるか検討する。
         String whereString =" lower("+MediaStore.Audio.Media.DATA + ") not like '%" + "off vocal" + "%' "
     			+ " and lower("+MediaStore.Audio.Media.DATA + ") not like '%" + "instrumental" + "%' "
-				 + " and lower("+MediaStore.Audio.Media.DATA + ") not like '%" + "/notifications/" + "%' ";
+				 + " and lower("+MediaStore.Audio.Media.DATA + ") not like '%" + "/notifications/" + "%' "
+        		+ " and " + MediaStore.Audio.Media.DURATION + " >=  30000 ";
         if (ab != null && ab.getArtist() != null) {
         	whereString += " and " + MediaStore.Audio.Media.ARTIST + " = " + DatabaseUtils.sqlEscapeString(ab.getArtist()) + "";
         }
@@ -671,7 +687,8 @@ public class LinearAudioPlayer extends Activity {
         				MediaStore.Audio.Media.DURATION,
         				MediaStore.Audio.Media.YEAR,
         				MediaStore.Audio.Media._ID,
-        				MediaStore.Audio.Media.DATE_ADDED
+        				MediaStore.Audio.Media.DATE_ADDED,
+        				MediaStore.Audio.Media.DATE_MODIFIED
         			},
         		whereString,
         		null,
@@ -682,6 +699,7 @@ public class LinearAudioPlayer extends Activity {
     	
     	long recentValue = 0;
 		SQLiteDatabase db = mDb.getReadableDatabase();
+
 		try {
             
             PlayListTable q = new PlayListTable();
@@ -719,6 +737,7 @@ public class LinearAudioPlayer extends Activity {
             case DEFAULT:
             case RECENT:
             	joiner = new CursorJoinerWithIntKey(c, new String[]{MediaStore.Audio.Media._ID}, cur, new String[]{MediaStore.Audio.Media._ID});
+            	//joiner = new CursorJoinerWithIntKey(c, new String[]{MediaStore.Audio.Media.DATA}, cur, new String[]{MediaStore.Audio.Media.DATA});
 	   	    	for (CursorJoinerWithIntKey.Result joinerResult : joiner) {
 	   	    	     switch (joinerResult) {
 	   	    	     	case LEFT:
@@ -730,7 +749,7 @@ public class LinearAudioPlayer extends Activity {
 	   	    	             ai.setPlaycount(cur.getInt(cur.getColumnIndex("_playcount")));
 	   	    	             
 	   	    	             if (mFilteringMode == FILTERING_MODE.DEFAULT
-	   	    	            		 || (mFilteringMode == FILTERING_MODE.RECENT && Long.parseLong(ai.getDateadd()) >= recentValue) ) {
+	   	    	            		 || (mFilteringMode == FILTERING_MODE.RECENT && ai.getDateadd() >= recentValue) ) {
 	   	    	            	 list.add(ai);
 	   	    	             }
 	   	    	             
@@ -742,7 +761,8 @@ public class LinearAudioPlayer extends Activity {
             case HALF_RATE:
             case PLAYFREQ_HIGH:
             	joiner = new CursorJoinerWithIntKey(c, new String[]{MediaStore.Audio.Media._ID}, cur, new String[]{MediaStore.Audio.Media._ID});
-	   	    	for (CursorJoinerWithIntKey.Result joinerResult : joiner) {
+            	//joiner = new CursorJoinerWithIntKey(c, new String[]{MediaStore.Audio.Media.DATA}, cur, new String[]{MediaStore.Audio.Media.DATA});
+            	for (CursorJoinerWithIntKey.Result joinerResult : joiner) {
 	   	    	     switch (joinerResult) {
 	   	    	        case BOTH:
 	   	    	             AudioItemBean ai = cursor2values(c); // 注：cursor2valuesはCursorをString[]に変換する独自のメソッドです。
@@ -760,7 +780,8 @@ public class LinearAudioPlayer extends Activity {
             	break;
             case NOT_RATING:
             	joiner = new CursorJoinerWithIntKey(c, new String[]{MediaStore.Audio.Media._ID}, cur, new String[]{MediaStore.Audio.Media._ID});
-	   	    	for (CursorJoinerWithIntKey.Result joinerResult : joiner) {
+            	//joiner = new CursorJoinerWithIntKey(c, new String[]{MediaStore.Audio.Media.DATA}, cur, new String[]{MediaStore.Audio.Media.DATA});
+            	for (CursorJoinerWithIntKey.Result joinerResult : joiner) {
 	   	    	     switch (joinerResult) {
 	   	    	     	case LEFT:
 	   	    	     		list.add(cursor2values(c));
@@ -790,7 +811,12 @@ public class LinearAudioPlayer extends Activity {
 	    		 Collections.sort(list,new Comparator<AudioItemBean>() {
 			            @Override
 			            public int compare(AudioItemBean o1, AudioItemBean o2) {
-			            	return o2.getDateadd().compareTo(o1.getDateadd());
+			            	try {
+			            	//return (int) (o2.getDatemodified() - o1.getDatemodified());
+			            	return new Long(o2.getDatemodified()).compareTo(o1.getDatemodified());
+			            	} catch(Exception ex) {
+			            		return 0;
+			            	}
 			            }
 			        });
 	    		 break;
@@ -820,10 +846,21 @@ public class LinearAudioPlayer extends Activity {
 	    		 
 	    		 break;
 	    	 case NOT_RATING:
-	    		 Collections.sort(list,new Comparator<AudioItemBean>() {
+	    		 /*Collections.sort(list,new Comparator<AudioItemBean>() {
 			            @Override
 			            public int compare(AudioItemBean o1, AudioItemBean o2) {
 			            	return  (int) (o2.getId() - o1.getId());
+			            }
+			        });*/
+	    		 Collections.sort(list,new Comparator<AudioItemBean>() {
+			            @Override
+			            public int compare(AudioItemBean o1, AudioItemBean o2) {
+			            	try {
+			            	//return (int) (o2.getDatemodified() - o1.getDatemodified());
+			            	return new Long(o2.getDatemodified()).compareTo(o1.getDatemodified());
+			            	} catch(Exception ex) {
+			            		return 0;
+			            	}
 			            }
 			        });
 	    		 break;
@@ -868,10 +905,25 @@ public class LinearAudioPlayer extends Activity {
 			db.close();
 		}
         
+		/*
+		if (mFilteringMode == FILTERING_MODE.DEFAULT) {
+			Collections.sort(list, new AudioItemComparator());
+			Collections.reverse(list);
+		}*/
         
         
         return list;
 	}
+    
+    /*
+    class AudioItemComparator implements java.util.Comparator {
+    	public int compare(Object s, Object t) {
+    		//               + (x > y)
+    		// compare x y = 0 (x = y)
+    		//               - (x < y)
+    		return (int) (Long.parseLong(((AudioItemBean) s).getDateadd()) - Long.parseLong(((AudioItemBean) t).getDateadd()));
+    	}
+    }*/
     
     private AudioItemBean cursor2values(Cursor c) {
 		AudioItemBean audioItemBean = new AudioItemBean();
@@ -884,7 +936,15 @@ public class LinearAudioPlayer extends Activity {
     	audioItemBean.setYear(c.getInt(c.getColumnIndex(MediaStore.Audio.Media.YEAR)));
     	audioItemBean.setDuration(c.getLong(c.getColumnIndex(MediaStore.Audio.Media.DURATION)));
     	audioItemBean.setId(c.getLong(c.getColumnIndex(MediaStore.Audio.Media._ID)));
-    	audioItemBean.setDateadd(c.getString(c.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)));
+    	audioItemBean.setDateadd(c.getLong(c.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)));
+    	try{
+    		File file = new File(audioItemBean.getFilePath());
+    		if (file.exists()) {
+    		audioItemBean.setDatemodified(file.lastModified());
+    		} else {
+    			audioItemBean.setDatemodified(0);
+    		}
+    	} catch(Exception ex) {}
     	
     	// sjis文字化け対策(ボツ)
     	//audioItemBean.setTitle(CommonUtils.utf8toSJIS(c.getBlob(c.getColumnIndex(MediaStore.Audio.Media.TITLE))));
@@ -1003,6 +1063,8 @@ public class LinearAudioPlayer extends Activity {
         MenuItem menuPlayEngine = (MenuItem)menu.findItem(R.id.menuEngine);
         MenuItem menuTheme = (MenuItem)menu.findItem(R.id.menuTheme);
         MenuItem menuConfig = (MenuItem)menu.findItem(R.id.menuConfig);
+        MenuItem menuRescan = (MenuItem)menu.findItem(R.id.menu_rescan);
+        MenuItem menuMigration = (MenuItem)menu.findItem(R.id.menu_migration);
         MenuItem menuVersion = (MenuItem)menu.findItem(R.id.menu_version);
         MenuItem menuPlayHistoryClear = (MenuItem)menu.findItem(R.id.menu_playhistoryClear);
 
@@ -1013,6 +1075,8 @@ public class LinearAudioPlayer extends Activity {
             menuPlayEngine.setVisible(true);
             menuTheme.setVisible(true);
             menuConfig.setVisible(true);
+            menuRescan.setVisible(true);
+            menuMigration.setVisible(true);
             menuVersion.setVisible(true);
             menuPlayHistoryClear.setVisible(false);
         } else if (mViewPager.getCurrentItem() == 1) {
@@ -1020,6 +1084,8 @@ public class LinearAudioPlayer extends Activity {
         	menuPlayEngine.setVisible(false);
         	menuTheme.setVisible(false);
         	menuConfig.setVisible(false);
+        	menuRescan.setVisible(false);
+        	menuMigration.setVisible(false);
         	menuVersion.setVisible(false);
         	menuPlayHistoryClear.setVisible(true);
         }
@@ -1043,6 +1109,105 @@ public class LinearAudioPlayer extends Activity {
 	        startActivityForResult(intent,RESULTCODE_PREF);
 	    	return true;
 	    	
+	    case R.id.menu_migration:
+	    	// 1. AlertDialog.Builder クラスのインスタンスを生成
+	        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+	        
+	        final EditText editView = new EditText(this);
+	        
+	        // 2. ダイアログタイトル、表示メッセージ、ボタンを設定
+	        builder.setView(editView);
+	        builder.setMessage("Are you sure?(option input base Dirctory Name)");
+	        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+	            public void onClick(DialogInterface dialog, int which) {
+	                // OK ボタンクリック処理
+	            	migration(editView.getText().toString());
+	            	
+	            }
+	        });
+	        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+	            public void onClick(DialogInterface dialog, int which) {
+	                // Cancel ボタンクリック処理
+	            	debugWritePlaylist();
+	            }
+	        });
+	        
+	        // 3. ダイアログを生成
+	        AlertDialog mAlertDlg = builder.create();
+	        mAlertDlg.show();
+	    	return true;
+	    	
+	    case R.id.menu_rescan:
+	    	//Broadcast the Media Scanner Intent to trigger it
+            /*sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri
+                    .parse("file://"
+                            + Environment.getExternalStorageDirectory())));*/
+	    	String[] rmvDirs = getRemovableStoragePaths(getApplicationContext());
+	    	//MediaScannerConnection.scanFile(getApplicationContext(), rmvDirs, null, null);
+	    	
+	    	List<String> sdfilelist = new ArrayList<String>();
+	    	for (String path : rmvDirs) {
+				//File dir = new File(path);
+	    		if (new File(path).listFiles() == null) continue;
+				List<String> allfiles = getFiles(path);
+				sdfilelist.addAll(allfiles);
+	    		//for (File file : dir.listFiles()) {
+				//	if (file.isFile()) sdfilelist.add(file.toString());
+				//}
+			}
+	    	
+	    	Collections.sort(sdfilelist, new Comparator<String>(){
+	    		public int compare(String o1,String o2){
+	    			File f1= new File(o1);
+	    			File f2= new File(o2);
+
+	    			try {
+	            	//return (int) (o2.getDatemodified() - o1.getDatemodified());
+	            	return new Long(f2.lastModified()).compareTo(f1.lastModified());
+	            	} catch(Exception ex) {
+	            		return 0;
+	            	}
+	    			//return (int)(f2.lastModified()-f1.lastModified());
+	    		}
+	    	});
+	    	
+	    	String[] sdfiles = new String[sdfilelist.size()];
+	    	sdfilelist.toArray(sdfiles);
+	    	
+	    	for (String string : sdfiles) {
+				Log.d("LINEAR", "ReScan:" + string);
+			}
+	    	
+	    	MediaScannerConnection.scanFile(
+	    			getApplicationContext(), sdfiles, null, 
+	    			new OnScanCompletedListener() {
+						
+						@Override
+						public void onScanCompleted(String path, Uri uri) {
+							// TODO Auto-generated method stub
+							Log.d("LINEAR", "ReScaned(path):" + path);
+							Log.d("LINEAR", "ReScaned(uri):" + uri);
+						}
+					});
+	    	
+	    	/*
+	    	List<String> sdfilelist = new ArrayList<String>();
+	    	File sddir = new File("");
+	    	for (File file : sddir.listFiles()) {
+				if (file.isFile()) sdfilelist.add(file.toString());
+			}
+	    	String[] sdfiles = new String[sdfilelist.size()];
+	    	sdfilelist.toArray(sdfiles);
+	    	MediaScannerConnection.scanFile(getApplicationContext(), sdfiles, null, null);
+	    	*/
+	    	
+
+            //Just a message
+            Toast toast = Toast.makeText(getApplicationContext(),
+                    "Media Scanner Running...", Toast.LENGTH_SHORT);
+            toast.show();
+	    	return true;
+	    	
 	    case R.id.menuEngine:
 	    	showEngineSelect();
 	    	return true;
@@ -1058,6 +1223,155 @@ public class LinearAudioPlayer extends Activity {
 	    return false;
 	}
 	
+	private List<String> getFiles(String path) {
+		List<String> pl = new ArrayList<String>();
+		File file = new File(path);
+		if (!file.isDirectory()) file = file.getParentFile();
+		for (File fc : file.listFiles()) {
+			if (fc.isDirectory()) pl.addAll(getFiles(fc.getPath()));
+			else pl.add(fc.getPath());
+		}
+		return pl;
+	}
+	
+	public static String[] getRemovableStoragePaths(Context context) {
+	    List<String> paths = new ArrayList<String>();
+	    try {
+	        StorageManager sm = (StorageManager)context.getSystemService(Context.STORAGE_SERVICE);
+	        Method getVolumeList = sm.getClass().getDeclaredMethod("getVolumeList");
+	        Object[] volumeList = (Object[])getVolumeList.invoke(sm);
+	        for (Object volume : volumeList) {
+	            Method getPath = volume.getClass().getDeclaredMethod("getPath");
+	            Method isRemovable = volume.getClass().getDeclaredMethod("isRemovable");
+	            String path = (String)getPath.invoke(volume);
+	            boolean removable = (Boolean)isRemovable.invoke(volume);
+	            if (removable) {
+	                paths.add(path);
+	            }
+	        }
+	    } catch (ClassCastException e) {
+	        e.printStackTrace();
+	    } catch (NoSuchMethodException e) {
+	        e.printStackTrace();
+	    } catch (InvocationTargetException e) {
+	        e.printStackTrace();
+	    } catch (IllegalAccessException e) {
+	        e.printStackTrace();
+	    }
+	    return paths.toArray(new String[paths.size()]);
+	}
+	
+	private void debugWritePlaylist() {
+		
+		PlayListTable p = new PlayListTable();
+    	DBHelper mDb = new DBHelper(this);
+    	
+		SQLiteDatabase db = mDb.getReadableDatabase();
+		
+
+		Cursor cur2 = db.rawQuery(p.getSelectQuery(), null);
+		
+		boolean isEof = cur2.moveToFirst();
+		while (isEof) {
+			Long id = cur2.getLong(cur2.getColumnIndex(MediaStore.Audio.Media._ID));
+			String data = cur2.getString(cur2.getColumnIndex("_data"));
+			Log.d(LinearConst.DEBUG_TAG, "Playlist Row:" + id.toString() + ", " + data);
+			isEof = cur2.moveToNext();
+		}
+		cur2.close();
+		
+        db.close();
+		
+	}
+	
+	private void migration(String rootdirname) {
+		
+		// mediastoreから存在するファイルだけ抜き出す。
+		Map<Long, String> mediaMap = new HashMap<Long, String>(); 
+		ContentResolver resolver = getContentResolver();
+		Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+        
+		Cursor cur = resolver.query(uri, 
+        		new String[] {MediaStore.Audio.Media.DATA,
+        				MediaStore.Audio.Media._ID
+        			},
+        		null,
+        		null,
+        		null);
+		
+		boolean isEof = cur.moveToFirst();
+		while (isEof) {
+			String filePath = cur.getString(cur.getColumnIndex(MediaStore.Audio.Media.DATA));
+			
+			if (new File(filePath).exists()) {
+				mediaMap.put(cur.getLong(cur.getColumnIndex(MediaStore.Audio.Media._ID)), 
+					filePath);
+			}
+			isEof = cur.moveToNext();
+		}
+		cur.close();
+		
+		// playlistを取得する
+		List<Long> playlistIdList = new ArrayList<Long>();
+		Map<String, Object[]> playlistMap = new HashMap<String, Object[]>(); 
+		PlayListTable p = new PlayListTable();
+    	DBHelper mDb = new DBHelper(this);
+    	
+		SQLiteDatabase db = mDb.getReadableDatabase();
+		
+		try {
+            
+	        db.beginTransaction();
+			Cursor cur2 = db.rawQuery(p.getSelectQuery(), null);
+			
+			isEof = cur2.moveToFirst();
+			while (isEof) {
+				playlistIdList.add(cur2.getLong(cur2.getColumnIndex(MediaStore.Audio.Media._ID)));
+				String filepath = cur2.getString(cur2.getColumnIndex("_data"));
+				if (filepath != null && rootdirname != null && rootdirname != "") {
+					int idx = filepath.indexOf(rootdirname);
+			    	if(idx != -1) filepath = filepath.substring(idx + rootdirname.length());
+				}
+				playlistMap.put(
+						filepath,
+						new Object[] {
+							cur2.getFloat(cur2.getColumnIndex("_rating")),
+							cur2.getInt(cur2.getColumnIndex("_playcount")),
+							cur2.getString(cur2.getColumnIndex("_lastplaydate"))
+						});
+				isEof = cur2.moveToNext();
+			}
+			cur2.close();
+			
+			
+			for(Map.Entry<Long, String> e : mediaMap.entrySet()) {
+			    Long id = e.getKey();
+			    String filepath = e.getValue();
+			    if (rootdirname != null && rootdirname != "") {
+			    	int idx = filepath.indexOf(rootdirname);
+			    	if(idx != -1) filepath = filepath.substring(idx + rootdirname.length());
+			    }
+				if(!playlistIdList.contains(id)) {
+					// playlistに存在しないidの場合、追加する。
+					Object[] values = playlistMap.get(filepath);
+					if (filepath != null && values != null) {
+						db.execSQL(p.getInsertQuery(), 
+							new Object[]{id, values[0], values[1], values[2], filepath});
+					}
+				}
+			}
+			db.setTransactionSuccessful();
+        } finally {
+            
+            db.endTransaction();
+            db.close();
+        }	
+		
+		ListDataLoadTask task = new ListDataLoadTask();
+        task.execute();
+			
+	}
+
 	@Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == RESULTCODE_PREF){
@@ -1249,7 +1563,7 @@ private void changeThemeStyle(int theme){
 		.setTitle("Version Info")
 		.setMessage("Linear Audio Player for Android\n" 
 		+ CommonUtils.getVersionNumber("ver.", this) + "\n"
-		+ "Copyright (c) 2012 FINALSTREAM." + engineVersion
+		+ "Copyright (c) 2012-2014 FINALSTREAM." + engineVersion
 		+  "\n\nLast.fm API: \nPowered by Last.fm API bindings for java ver.0.1.2"
 		+ "\n Copyright (c) 2012 the Last.fm Java Project and Committers."
 		).setPositiveButton("OK", null)
@@ -1408,7 +1722,7 @@ private void changeThemeStyle(int theme){
 	 * レーティングを更新
 	 * @param f
 	 */
-	public void updateRating(long id, Float f) {
+	public void updateRating(long id, String data, Float f) {
     	
 		
 		DBHelper mDb = new DBHelper(this);
@@ -1424,7 +1738,20 @@ private void changeThemeStyle(int theme){
             cur.close();
             
             if (rowcnt == 0) {
-            	db.execSQL(q.getInsertQuery(), new Long[]{id});
+            	// 同じパスがあれば削除して引き継ぐ
+            	Float rating = -1f;
+            	int playcount = 0;
+            	/*
+            	Cursor cur2 = db.rawQuery(q.getSelectDataQuery(), new String[]{ data });
+            	cur2.moveToFirst();
+            	if (cur2.getCount() > 0) {
+            		db.execSQL(q.getDeleteDataQuery(), new String[]{data});
+            		rating = cur2.getFloat(cur2.getColumnIndex("_rating"));
+            		playcount = cur2.getInt(cur2.getColumnIndex("_playcount"));
+            	}
+            	cur2.close();*/
+            	
+            	db.execSQL(q.getInsertQuery(), new Object[]{id, rating, playcount, null, data});
             }
             
             db.execSQL(q.getUpdateRatingQuery(), new Object[]{f ,id});
@@ -1439,6 +1766,25 @@ private void changeThemeStyle(int theme){
     	Log.d("LINEAR", "Update Rating :" + f.toString());
     	
     }
+/*
+	@Override
+	public void onMediaScannerConnected() {
+		// TODO Auto-generated method stub
+		mConnection.scanFile(Environment.getExternalStorageDirectory().toString(), null);
+				/*MediaScannerConnection.scanFile(getApplicationContext(),
+                new String[]{ Environment.getExternalStorageDirectory().toString() },
+                null,
+                null);
+	}
 
+	@Override
+	public void onScanCompleted(String path, Uri uri) {
+		// TODO Auto-generated method stub
+		//Just a message
+        //Toast toast = Toast.makeText(getApplicationContext(),
+        //        "Media Scanner Completed.", Toast.LENGTH_SHORT);
+        //toast.show();
+	}
+*/
 	
 }

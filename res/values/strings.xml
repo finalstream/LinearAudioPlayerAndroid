@@ -9,11 +9,14 @@
     <string name="title_activity_main">MainActivity</string>
     
 	<string name="listitem_id">listitemid</string>
+	<string name="listitem_data">listitemdata</string>
 	<string name="listitem_fromuser">listitemfromuser</string>
     
 	<string name="playhistory">Play History</string>
 	<string name="menu_playengine">Play Engine</string>
 	<string name="menu_changetheme">Change Theme</string>
+	<string name="menu_rescan">Run MediaScanner</string>
+	<string name="menu_migration">Data Migration</string>
 	<string name="menu_config">Setting</string>
 	<string name="menu_playhistoryclear">Clear PlayHistory</string>
 	<string name="playengineselect">Play Engine Select</string>

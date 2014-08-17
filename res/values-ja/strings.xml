@@ -9,12 +9,15 @@
     <string name="title_activity_main">MainActivity</string>
     
 	<string name="listitem_id">listitemid</string>
+	<string name="listitem_data">listitemdata</string>
 	<string name="listitem_fromuser">listitemfromuser</string>
     
 	<string name="playhistory">再生履歴</string>
 	<string name="menu_playengine">再生エンジン</string>
 	<string name="menu_changetheme">テーマ変更</string>
 	<string name="menu_config">設定</string>
+	<string name="menu_rescan">メディアスキャナー実行</string>
+	<string name="menu_migration">データ引き継ぎ</string>
 	<string name="menu_playhistoryclear">再生履歴をクリア</string>
 	<string name="playengineselect">再生エンジン選択</string>
 	<string name="themeselect">テーマ選択</string>

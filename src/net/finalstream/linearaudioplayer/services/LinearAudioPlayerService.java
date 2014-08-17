@@ -1065,7 +1065,20 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
             cur.close();
             
             if (rowcnt == 0) {
-            	db.execSQL(q.getInsertQuery(), new Long[]{mPlayingItem.getId()});
+            	// “¯‚¶ƒpƒX‚ª‚ ‚ê‚Îíœ‚µ‚Äˆø‚«Œp‚®
+            	Float rating = -1f;
+            	int playcount = 0;
+            	/*
+            	Cursor cur2 = db.rawQuery(q.getSelectDataQuery(), new String[]{ mPlayingItem.getFilePath() });
+            	cur2.moveToFirst();
+            	if (cur2.getCount() > 0) {
+            		db.execSQL(q.getDeleteDataQuery(), new String[]{mPlayingItem.getFilePath()});
+            		rating = cur2.getFloat(cur2.getColumnIndex("_rating"));
+            		playcount = cur2.getInt(cur2.getColumnIndex("_playcount"));
+            	}
+            	cur2.close();
+            	*/
+            	db.execSQL(q.getInsertQuery(), new Object[]{mPlayingItem.getId(), rating, playcount, null, mPlayingItem.getFilePath()});
             }
             
             db.execSQL(q.getUpdatePlayStateQuery(), new Long[]{mPlayingItem.getId()});

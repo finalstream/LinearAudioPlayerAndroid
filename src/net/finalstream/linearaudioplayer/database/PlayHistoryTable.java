@@ -124,6 +124,8 @@ public class PlayHistoryTable {
 			    	 cur_a.close();
 			    	 cur_b.close();
 			    	 
+				}catch(Exception ex) {
+					// do nothing
 		        } finally {
 		        	
 		            db.close();

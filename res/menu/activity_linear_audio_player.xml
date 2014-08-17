@@ -1,8 +1,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/menuEngine" android:title="@string/menu_playengine"></item><item android:id="@+id/menuTheme" android:title="@string/menu_changetheme"></item><item android:id="@+id/menuConfig" android:title="@string/menu_config"></item><item android:id="@+id/menu_version"
+    <item android:id="@+id/menu_rescan" android:title="@string/menu_rescan"></item><item android:id="@+id/menuEngine" android:title="@string/menu_playengine"></item><item android:id="@+id/menuTheme" android:title="@string/menu_changetheme"></item><item android:id="@+id/menuConfig" android:title="@string/menu_config"></item><item android:id="@+id/menu_version"
         android:title="version"
-        android:orderInCategory="100" />
-    <item android:id="@+id/menu_playhistoryClear" android:title="@string/menu_playhistoryclear"></item>
+        android:orderInCategory="100" >
+    </item>
+    <item android:id="@+id/menu_migration" android:title="@string/menu_migration"></item><item android:id="@+id/menu_playhistoryClear" android:title="@string/menu_playhistoryclear"></item>
+    
+    
     
     
     

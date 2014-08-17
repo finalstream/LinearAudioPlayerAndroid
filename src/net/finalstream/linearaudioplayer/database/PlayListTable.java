@@ -15,17 +15,19 @@ import android.provider.MediaStore;
 
 public class PlayListTable {
 	 private static final String CREATE =
-		        "create table playlist(_id integer primary key not null, _rating real not null, _playcount int not null, _lastplaydate text)";
+		        "create table playlist(_id integer primary key not null, _rating real not null, _playcount int not null, _lastplaydate text, _data text)";
 		    private static final String DROP = "drop table playlist";
-		    private static final String INSERT = "insert into playlist(_id, _rating, _playcount, _lastplaydate) values ( ? , -1, 0, null)";
+		    private static final String INSERT = "insert into playlist(_id, _rating, _playcount, _lastplaydate, _data) values ( ? , ?, ?, ?, ?)";
 		    private static final String UPDATE_PLAYSTATE = "update playlist set _playcount = _playcount+1, _lastplaydate = strftime('%Y-%m-%d %H:%M:%S', 'now')  where _id = ?";
 		    private static final String UPDATE_RATING = "update playlist set _rating = ? where _id = ?";
 		    private static final String DELETE = "delete from playlist where _id = ?";
+		    private static final String DELETE_DATA = "delete from playlist where _data = ?";
 		    private static final String SELECT = "select * from playlist";
 		    private static final String SELECT_FULLRATE = "select * from playlist where _rating = 1";
 		    private static final String SELECT_HALFRATE = "select * from playlist where _rating >= 0.5";
 		    private static final String SELECT_PLAYFREQHIGH = "select *, _playcount / round(julianday(datetime('now', 'localtime')) - julianday(datetime(_lastplaydate))) _playfreq from playlist";
 		    private static final String SELECT_COUNT = "select count(_id) from playlist where _id = ?";
+		    private static final String SELECT_DATA = "select * from playlist where _data = ?";
 		    private static final String SELECT_NOTRATING = "select * from playlist";
 		    private static final String SELECT_GETRATING = "select _rating from playlist where _id = ?";
 		    
@@ -48,6 +50,9 @@ public class PlayListTable {
 		    public String getSelectCountQuery() { return SELECT_COUNT; }
 		    public String getSelectNotRatingQuery() { return SELECT_NOTRATING; }
 		    public String getSelectGetRatingQuery() { return SELECT_GETRATING; }
+		    public String getSelectDataQuery() { return SELECT_DATA; }
+		    public String getDeleteDataQuery() { return DELETE_DATA; }
+		    
 		    
 		    public void setData(Cursor c) {
 		        // TODO Auto-generated method stub

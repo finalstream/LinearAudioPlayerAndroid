@@ -18,9 +18,16 @@ public class AudioItemBean implements Serializable {
 	private long sort;
 	private float rating = -1.0f;
 	private int playcount;
-	private String dateadd;
+	private long dateadd;
 	private float playfreq;
+	private long datemodified;
 	
+	public long getDatemodified() {
+		return datemodified;
+	}
+	public void setDatemodified(long datemodified) {
+		this.datemodified = datemodified;
+	}
 	public String getTitle() {
 		return title;
 	}
@@ -81,10 +88,10 @@ public class AudioItemBean implements Serializable {
 	public void setRating(float rating) {
 		this.rating = rating;
 	}
-	public String getDateadd() {
+	public long getDateadd() {
 		return dateadd;
 	}
-	public void setDateadd(String dateadd) {
+	public void setDateadd(long dateadd) {
 		this.dateadd = dateadd;
 	}
 	public float getPlayfreq() {
@@ -93,5 +100,6 @@ public class AudioItemBean implements Serializable {
 	public void setPlayfreq(float playfreq) {
 		this.playfreq = playfreq;
 	}
+	
 
 }

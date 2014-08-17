@@ -53,7 +53,7 @@ public class ListPlayListRowAdapter extends ArrayAdapter<AudioItemBean> implemen
 		        	}
 		        	//r.setTag(R.string.listitem_fromuser,true);
 		        	Long targetId = (Long)r.getTag(R.string.listitem_id);
-		        	((LinearAudioPlayer) mContext).updateRating(targetId ,r.getRating());
+		        	((LinearAudioPlayer) mContext).updateRating(targetId, r.getTag(R.string.listitem_data).toString(), r.getRating());
 		        	
 		        	// アダプター更新
 		            for (int i = 0; i < linear.getPlaylistAdapter().getCount(); i++) {
@@ -114,6 +114,7 @@ public class ListPlayListRowAdapter extends ArrayAdapter<AudioItemBean> implemen
 		
 		
 		rating1.setTag(R.string.listitem_id, audioItem.getId());
+		rating1.setTag(R.string.listitem_data, audioItem.getFilePath());
 		//rating1.setTag(R.string.listitem_fromuser,false);
 		rating1.setRating(audioItem.getRating());
 
