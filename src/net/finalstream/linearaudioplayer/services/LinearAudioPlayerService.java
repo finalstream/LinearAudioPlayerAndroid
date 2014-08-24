@@ -21,6 +21,7 @@ import de.umass.lastfm.Track;
 
 import net.finalstream.linearaudioplayer.LinearAudioPlayer;
 import net.finalstream.linearaudioplayer.LinearConst;
+import net.finalstream.linearaudioplayer.ObjectSerializer;
 import net.finalstream.linearaudioplayer.R;
 import net.finalstream.linearaudioplayer.adapter.ListPlayListRowAdapter;
 import net.finalstream.linearaudioplayer.audio.AudioFocusHelper;
@@ -38,6 +39,7 @@ import net.finalstream.linearaudioplayer.engine.AndroidEngine;
 import net.finalstream.linearaudioplayer.engine.BassEngine;
 import net.finalstream.linearaudioplayer.engine.FmodEngine;
 import net.finalstream.linearaudioplayer.engine.IPlayEngine;
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -47,6 +49,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.media.AudioManager;
@@ -56,11 +59,14 @@ import android.media.MediaPlayer.OnErrorListener;
 import android.media.MediaPlayer.OnPreparedListener;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.PowerManager;
+import android.provider.MediaStore.Audio;
 import android.util.Log;
+import android.widget.RemoteViews;
 import android.widget.Toast;
 
 public class LinearAudioPlayerService extends Service implements 
@@ -86,26 +92,65 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
 			
 			String action = intent.getAction();
 			
-			/*
+			
 			if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(action)) {
+				AudioItemBean resumeItem = LinearAudioPlayerService.this.getPlayingItem();
+				String resumeItemSerialized = null;
+				try {
+					resumeItemSerialized = ObjectSerializer.serialize(resumeItem);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				int resumePosition = LinearAudioPlayerService.this.getPosition();
+				
 				//ヘッドホンが抜かれた時の処理
 				LinearAudioPlayerService.this.processStopRequest();
-			}*/
-			
-			// plug状態を取得
-            boolean isPlugged = false;
-            if (intent.getIntExtra("state", 0) > 0) {
-                isPlugged = true;
-            }
-
-            // plug状態でメッセージを変更。
-            if (isPlugged) {
-                // ヘッドセットが挿された
-            	LinearAudioPlayerService.this.processSkipRequest(new Intent());
-            } else {
-                // ヘッドセットが抜かれた
-            	LinearAudioPlayerService.this.processStopRequest();
-            }
+				
+				// resume保存
+				SharedPreferences pref = 
+						getSharedPreferences(LinearConst.PREF_KEY, MODE_PRIVATE);
+				Editor e = pref.edit();
+				e.putString("ResumeItem", resumeItemSerialized);
+				e.putInt("ResumePosition", resumePosition);
+				e.commit();
+			} else {
+				// plug状態を取得
+	            boolean isPlugged = false;
+	            if (intent.getIntExtra("state", 0) > 0) {
+	                isPlugged = true;
+	            }
+	
+	            // plug状態でメッセージを変更。
+	            if (isPlugged) {
+	                // ヘッドセットが挿された
+	            	playEngine.setVolume(1.0f);
+	            	//LinearAudioPlayerService.this.processSkipRequest(new Intent());
+	            	if (!LinearAudioPlayerService.this.isPlaying()) {
+	            		SharedPreferences pref =
+	                			getSharedPreferences(LinearConst.PREF_KEY, MODE_PRIVATE);
+	            		String resumeitemstring = pref.getString("ResumeItem", null);
+	            		if (resumeitemstring != null) {
+	            			try {
+								AudioItemBean resumeitem = (AudioItemBean) ObjectSerializer.deserialize(resumeitemstring);
+								tryToGetAudioFocus();
+								LinearAudioPlayerService.this.playNextSong(resumeitem);
+								LinearAudioPlayerService.this.setPosition(pref.getInt("ResumePosition", 0));
+	            			} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+	            			
+	            		}
+	            	}
+	            } else {
+	                // ヘッドセットが抜かれた
+	            	LinearAudioPlayerService.this.processStopRequest();
+	            	//AudioItemBean resumeItem = LinearAudioPlayerService.this.getPlayingItem();
+	            	//LinearAudioPlayerService.this.getSharedPreferences(name, mode)
+	            	//resumeItem.getId()
+	            }
+			}
 			
 		}
 	}
@@ -279,8 +324,10 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
 			
 			IntentFilter filter = new IntentFilter(LinearAudioPlayerService.ACTION);
 	        filter.addAction(Intent.ACTION_HEADSET_PLUG);
-	        
+	        filter.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+			//IntentFilter filter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
 			registerReceiver( receiver , filter );
+			
 			
 			// Create the retriever and start an asynchronous task that will prepare it.
 	        //mRetriever = new MusicRetriever(getContentResolver());
@@ -589,8 +636,10 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
         else if (mAudioFocus == AudioFocus.NoFocusCanDuck)
             playEngine.setVolume(DUCK_VOLUME);  // we'll be relatively quiet
         else
-            playEngine.setVolume(1.0f); // we can be loud
+            playEngine.setVolume(0.0f); // we can be loud
 
+        
+        
         if (!playEngine.isPlaying()) {
         	playEngine.play();
         	mUpdateHandler.sendMessageDelayed(mUpdateHandler.obtainMessage(0), 0);
@@ -598,6 +647,29 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
         } else {
         	pause();
         }
+        
+        // fadein
+        
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+            	AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+            	int mode = audioManager.getRingerMode();
+            	if (mode == AudioManager.RINGER_MODE_NORMAL || audioManager.isWiredHeadsetOn()) {
+	            	float volume = 0.0f;
+			        while(volume < 1.0f) {
+			        	playEngine.setVolume(volume);
+			        	volume += 0.1f;
+			        	try {
+							Thread.sleep(300);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+			        }
+            	}
+		    }
+        }).start();
         
         String toastMsg = mPlayingItem.getTitle() + "\n" + mPlayingItem.getArtist() + "\n(" + viewRating(mPlayingItem.getRating()) + ")";
         ToastMaster.makeText(this, toastMsg, Toast.LENGTH_SHORT).show();
@@ -687,10 +759,7 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
             if (audioItem == null) {
             	playingItem = getRandomItem();
             	
-            	// サービスでランダム変更された場合、Activityに返す。
-            	Intent intent = new Intent(RECVACTION_RESTORE);
-        		intent.putExtra("AUDIOITEM", playingItem);
-        		sendBroadcast(intent);
+            	
             }else {
             	playingItem = audioItem;
             }
@@ -702,6 +771,11 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
                 processStopRequest(true); // stop everything!
                 return;
             }
+            
+         // サービスでランダム変更された場合、Activityに返す。
+        	Intent intent = new Intent(RECVACTION_RESTORE);
+    		intent.putExtra("AUDIOITEM", playingItem);
+    		sendBroadcast(intent);
 
             // set the source of the media player a a content URI
             createMediaPlayerIfNeeded();
@@ -876,11 +950,13 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
 
 	/** Updates the notification. */
     void updateNotification(AudioItemBean bean) {
-        PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0,
+        
+    	PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0,
                 new Intent(getApplicationContext(), LinearAudioPlayer.class),
                 PendingIntent.FLAG_UPDATE_CURRENT);
         mNotification.setLatestEventInfo(getApplicationContext(), bean.getTitle(), bean.getArtist() + " (" + viewRating(bean.getRating()) + ")", pi);
         mNotificationManager.notify(NOTIFICATION_ID, mNotification);
+    	
     }
     
     /**
@@ -888,10 +964,11 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
      * something the user is actively aware of (such as playing music), and must appear to the
      * user as a notification. That's why we create the notification here.
      */
-    void setUpAsForeground() {
+	void setUpAsForeground() {
         PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0,
                 new Intent(getApplicationContext(), LinearAudioPlayer.class),
                 PendingIntent.FLAG_UPDATE_CURRENT);
+        
         mNotification = new Notification();
         mNotification.tickerText = getNotificationMessage(mPlayingItem);
         mNotification.icon = R.drawable.ic_notification;
@@ -899,6 +976,8 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
         | Notification.FLAG_NO_CLEAR;
         mNotification.setLatestEventInfo(getApplicationContext(), "LinearAudioPlayer",
         		mNotification.tickerText, pi);
+        
+        
         startForeground(NOTIFICATION_ID, mNotification);
     }
     
@@ -1005,8 +1084,19 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
     }
     
     void processStopRequest(boolean force) {
+    	
         if (mState == State.Playing || mState == State.Paused || force) {
             mState = State.Stopped;
+            
+            if (playEngine != null) {
+            	playEngine.setVolume(0);
+            	playEngine.stop();
+            	mUpdateHandler.removeMessages(0);
+            }
+            // service is no longer necessary. Will be started again if needed.
+            stopSelf();
+            
+            
             Log.d("LINEAR", "State change : Sttoped");
 
             // let go of all resources...
@@ -1020,12 +1110,6 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
 //            }
             mPlayCountStopwatch.stop();
             
-            if (playEngine != null) {
-            	playEngine.stop();
-            	mUpdateHandler.removeMessages(0);
-            }
-            // service is no longer necessary. Will be started again if needed.
-            stopSelf();
             
             ToastMaster.makeText(this, "Stop LinearAudioPlayer", Toast.LENGTH_SHORT).show();
         }
