@@ -114,6 +114,12 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
 				e.putString("ResumeItem", resumeItemSerialized);
 				e.putInt("ResumePosition", resumePosition);
 				e.commit();
+				
+				// service is no longer necessary. Will be started again if needed.
+				Intent exitIntent = new Intent(RECVACTION_APPEXIT);
+	    		sendBroadcast(exitIntent);
+				LinearAudioPlayerService.this.stopSelf();
+				
 			} else {
 				// plug状態を取得
 	            boolean isPlugged = false;
@@ -184,6 +190,7 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
     public static final String RECVACTION_PLAYED = "net.finalstream.linearaudioplayer.recvaction.PLAYED";
     // ServiceからActivityに再生アイテムを渡すアクション
     public static final String RECVACTION_RESTORE = "net.finalstream.linearaudioplayer.recvaction.RESTORE";
+    public static final String RECVACTION_APPEXIT = "net.finalstream.linearaudioplayer.recvaction.APPEXIT";
     
     // Our instance of our MusicRetriever, which handles scanning for media and
     // providing titles and URIs as we need.
@@ -458,7 +465,11 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
         if (action.equals(ACTION_PLAY)) processPlayRequest();
         else if (action.equals(ACTION_PAUSE)) processPauseRequest();
         else if (action.equals(ACTION_SKIP)) processSkipRequest(intent);
-        else if (action.equals(ACTION_STOP)) processStopRequest();
+        else if (action.equals(ACTION_STOP)) {
+        	processStopRequest();
+        	// service is no longer necessary. Will be started again if needed.
+			stopSelf();
+        }
         else if (action.equals(ACTION_GETPLAYINGITEM)) processGetPlayingItemRequest();
         else if (action.equals(ACTION_KEEPLISTDATA)) processKeepListDataRequest(intent);
         
@@ -655,7 +666,7 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
             public void run() {
             	AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
             	int mode = audioManager.getRingerMode();
-            	if (mode == AudioManager.RINGER_MODE_NORMAL || audioManager.isWiredHeadsetOn()) {
+            	if (mode == AudioManager.RINGER_MODE_NORMAL || audioManager.isWiredHeadsetOn() || audioManager.isBluetoothA2dpOn()) {
 	            	float volume = 0.0f;
 			        while(volume < 1.0f) {
 			        	playEngine.setVolume(volume);
@@ -1093,8 +1104,7 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
             	playEngine.stop();
             	mUpdateHandler.removeMessages(0);
             }
-            // service is no longer necessary. Will be started again if needed.
-            stopSelf();
+            
             
             
             Log.d("LINEAR", "State change : Sttoped");
@@ -1112,6 +1122,8 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
             
             
             ToastMaster.makeText(this, "Stop LinearAudioPlayer", Toast.LENGTH_SHORT).show();
+        
+            
         }
     }
     
@@ -1233,6 +1245,7 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
     	
     }
     
+    /*
     private Thread mSelfStopThread = new Thread() {
 		public void run() {
 			while (true) {
@@ -1254,7 +1267,7 @@ PrepareMusicRetrieverTask.MusicRetrieverPreparedListener{
 			LinearAudioPlayerService.this.stopSelf();
 			Log.i("LINEAR", "AutoStopService");
 		}
-	};
+	};*/
 	
 	public int getPlayEngineVersion() {
 

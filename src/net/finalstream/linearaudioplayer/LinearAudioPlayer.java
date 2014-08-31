@@ -129,6 +129,8 @@ public class LinearAudioPlayer extends Activity {
 			} else if (action.equals(LinearAudioPlayerService.RECVACTION_RESTORE)) {
 				AudioItemBean bean = (AudioItemBean) intent.getSerializableExtra("AUDIOITEM");
 				LinearAudioPlayer.this.updateDisplay(bean);
+			} else if (action.equals(LinearAudioPlayerService.RECVACTION_APPEXIT)) {
+				LinearAudioPlayer.this.finish();
 			}
 
 		}
@@ -281,6 +283,7 @@ public class LinearAudioPlayer extends Activity {
         IntentFilter filter = new IntentFilter(LinearAudioPlayerService.ACTION);
         filter.addAction(LinearAudioPlayerService.RECVACTION_PLAYED);
         filter.addAction(LinearAudioPlayerService.RECVACTION_RESTORE);
+        filter.addAction(LinearAudioPlayerService.RECVACTION_APPEXIT);
         registerReceiver(receiver, filter);
 
         
